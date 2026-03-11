@@ -951,6 +951,7 @@ function Hiscores() {
     { name: "Nyakatra" },
     { name: "Rawrsial" },
     { name: "GIMAn0nym0us" },
+    { name: "Real Netto" },
   ]);
   const [newName, setNewName] = useState("");
 
@@ -1157,12 +1158,13 @@ function WikiLinks() {
 }
 
 // ── moved outside LogTracker so React doesn't recreate them on every render ──
-const GIM_MEMBERS = ["TulakIron", "Nyakatra", "Rawrsial", "GIMAn0nym0us"];
+const GIM_MEMBERS = ["TulakIron", "Nyakatra", "Rawrsial", "GIMAn0nym0us", "Real Netto"];
 const MEMBER_COLORS = {
   TulakIron:    { color: "#c8a951", bg: "rgba(200,169,81,0.08)",  border: "rgba(200,169,81,0.3)"  },
   Nyakatra:     { color: "#5b8edb", bg: "rgba(91,142,219,0.08)",  border: "rgba(91,142,219,0.3)"  },
   Rawrsial:     { color: "#7ecba1", bg: "rgba(126,203,161,0.08)", border: "rgba(126,203,161,0.3)" },
   GIMAn0nym0us: { color: "#c47de8", bg: "rgba(196,125,232,0.08)", border: "rgba(196,125,232,0.3)" },
+  "Real Netto": { color: "#e8845b", bg: "rgba(232,132,91,0.08)",  border: "rgba(232,132,91,0.3)"  },
 };
 
 function MemberHistory({ member, history, viewFilter, setViewFilter, viewTypeFilter, setViewTypeFilter, deleteEntry }) {
@@ -2705,7 +2707,7 @@ function Homepage({ setPage, discordLink, setDiscordLink }) {
                 { id: "hiscores", icon: "🏆", label: "Hiscores" },
                 { id: "events", icon: "⚡", label: "Events" },
                 { id: "wiki", icon: "📖", label: "Wiki" },
-                { id: "logs", icon: "📋", label: "Drop Log" },
+                { id: "herbs", icon: "🌿", label: "Herb Runs" },
                 { id: "calculators", icon: "⚗️", label: "Calculators" },
                 { id: "discord", icon: "💬", label: "Discord" },
               ].map(p => (
@@ -2905,8 +2907,6 @@ const PAGES = [
   { id: "hiscores", label: "Hiscores" },
   { id: "events", label: "Events" },
   { id: "wiki", label: "Wiki" },
-  { id: "logs", label: "Drop Log" },
-  { id: "clues", label: "Clue Scrolls" },
   { id: "herbs", label: "Herb Runs" },
   { id: "calculators", label: "Calculators" },
   { id: "discord", label: "Discord" },
@@ -3032,8 +3032,7 @@ export default function App() {
         {page === "hiscores" && <Hiscores />}
         {page === "events" && <EventTracker />}
         {page === "wiki" && <WikiLinks />}
-        {page === "logs" && <LogTracker />}
-        {page === "clues" && <ClueTracker />}
+
         {page === "herbs" && <HerbTracker />}
         {page === "calculators" && <Calculators />}
         {page === "discord" && <Discord discordLink={discordLink} setDiscordLink={setDiscordLink} />}
