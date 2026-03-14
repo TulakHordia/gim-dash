@@ -1015,9 +1015,29 @@ function Hiscores() {
 
 function EventTracker() {
   const [now, setNow] = useState(new Date());
+  const [vosData, setVosData] = useState(null);
+  const [vosError, setVosError] = useState(false);
+
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  const fetchVos = async () => {
+    try {
+      const r = await fetch("/api/vos");
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setVosData(d);
+      setVosError(false);
+    } catch {
+      setVosError(true);
+    }
+  };
+  useEffect(() => {
+    fetchVos();
+    const iv = setInterval(fetchVos, 5 * 60 * 1000);
+    return () => clearInterval(iv);
   }, []);
 
   const utcH = now.getUTCHours();
@@ -1025,8 +1045,9 @@ function EventTracker() {
   const utcS = now.getUTCSeconds();
   const pad = n => String(n).padStart(2, "0");
 
-  const activePriff = PRIFF_DISTRICTS[utcH % 8];
   const minsUntilPriff = 60 - utcM;
+  const vosD1 = vosData ? (PRIFF_DISTRICTS.find(d => d.name === vosData.district1) || { name: vosData.district1, icon: "🌆", skill: "" }) : null;
+  const vosD2 = vosData ? (PRIFF_DISTRICTS.find(d => d.name === vosData.district2) || { name: vosData.district2, icon: "🌆", skill: "" }) : null;
 
   const activeEventIdx = (utcH + 8) % WILDFLASH_EVENTS.length;
   const activeWildy = WILDFLASH_EVENTS[activeEventIdx];
@@ -1034,35 +1055,36 @@ function EventTracker() {
   const nextEventIdx = (activeEventIdx + 1) % WILDFLASH_EVENTS.length;
   const nextWildy = WILDFLASH_EVENTS[nextEventIdx];
 
-  // Next 8 priff rotations
-  const upcomingPriff = Array.from({ length: 8 }, (_, i) => {
-    const h = (utcH + i + 1) % 24;
-    return { name: PRIFF_DISTRICTS[h % 8].name, icon: PRIFF_DISTRICTS[h % 8].icon, at: `${pad(h)}:00 UTC` };
-  });
-
   return (
     <div className="fade-in">
       <div className="section-title">Event Tracker</div>
       <div className="section-desc">Live RS3 game events based on UTC time.</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
-        {/* Priff */}
+        {/* Priff VoS */}
         <div className="card">
-          <div className="card-title">🌆 Active Priff District</div>
-          <div style={{ fontSize: "2.5rem", margin: "0.5rem 0" }}>{activePriff.icon}</div>
-          <div style={{ fontFamily: "'Cinzel', serif", color: "var(--gold)", fontSize: "1.2rem", marginBottom: "4px" }}>{activePriff.name}</div>
-          <div style={{ color: "var(--text-dim)", fontSize: "0.9rem", marginBottom: "8px" }}>{activePriff.skill}</div>
-          <div style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>Switches in <strong style={{ color: "var(--gold)" }}>{minsUntilPriff}m {60 - utcS}s</strong></div>
-          <div style={{ marginTop: "1rem" }}>
-            <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.65rem", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>Upcoming</div>
-            {upcomingPriff.slice(0, 5).map(p => (
-              <div key={p.at} style={{ display: "flex", gap: "8px", alignItems: "center", padding: "3px 0", fontSize: "0.82rem", borderBottom: "1px solid var(--border)" }}>
-                <span>{p.icon}</span>
-                <span style={{ flex: 1 }}>{p.name}</span>
-                <span style={{ color: "var(--text-dim)", fontSize: "0.75rem" }}>{p.at}</span>
+          <div className="card-title">🌆 Voice of Seren</div>
+          {vosError && <div style={{ color: "var(--text-dim)", fontSize: "0.85rem", margin: "0.5rem 0" }}>⚠️ Could not load — <a href="https://runescape.wiki/w/Voice_of_Seren" target="_blank" rel="noreferrer" style={{ color: "var(--gold)" }}>check wiki</a></div>}
+          {!vosData && !vosError && <div style={{ color: "var(--text-dim)", fontSize: "0.85rem", margin: "0.5rem 0" }}>Loading…</div>}
+          {vosD1 && vosD2 && (<>
+            <div style={{ display: "flex", gap: "1.5rem", margin: "0.75rem 0" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "2rem" }}>{vosD1.icon}</div>
+                <div style={{ fontFamily: "'Cinzel', serif", color: "var(--gold)", fontSize: "1rem" }}>{vosD1.name}</div>
+                <div style={{ color: "var(--text-dim)", fontSize: "0.78rem" }}>{vosD1.skill}</div>
               </div>
-            ))}
-          </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "2rem" }}>{vosD2.icon}</div>
+                <div style={{ fontFamily: "'Cinzel', serif", color: "var(--gold)", fontSize: "1rem" }}>{vosD2.name}</div>
+                <div style={{ color: "var(--text-dim)", fontSize: "0.78rem" }}>{vosD2.skill}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>Switches in <strong style={{ color: "var(--gold)" }}>{minsUntilPriff}m {60 - utcS}s</strong></div>
+            <div style={{ marginTop: "0.75rem", fontSize: "0.72rem", color: "var(--text-dim)" }}>
+              Data crowdsourced via alt1 · <a href="https://runescape.wiki/w/Voice_of_Seren" target="_blank" rel="noreferrer" style={{ color: "var(--gold-dim)" }}>Wiki</a> · Next districts unknown (random rotation)
+            </div>
+            <button onClick={fetchVos} style={{ marginTop: "0.75rem", background: "none", border: "1px solid var(--border)", color: "var(--text-dim)", borderRadius: 4, padding: "3px 10px", fontSize: "0.75rem", cursor: "pointer" }}>↻ Refresh</button>
+          </>)}
         </div>
 
         {/* Wildy */}
@@ -1803,21 +1825,30 @@ function ClueTracker() {
 // ============================================================
 
 const HERB_PATCHES = [
-  // ── Allotment/Flower/Herb patches ──
-  { id: "falador",      name: "Falador",          location: "South of Falador",             teleport: "Explorer's ring",                          category: "standard", icon: "🌿", note: "" },
-  { id: "phasmatys",    name: "Port Phasmatys",   location: "West of Port Phasmatys",       teleport: "Ectophial",                                category: "standard", icon: "🌿", note: "" },
-  { id: "catherby",     name: "Catherby",          location: "North of Catherby",            teleport: "Catherby lodestone / Camelot Teleport",    category: "standard", icon: "🌿", note: "" },
-  { id: "ardougne",     name: "Ardougne",          location: "North of Ardougne",            teleport: "Ardougne lodestone / Ardougne Teleport",   category: "standard", icon: "🌿", note: "" },
-  // ── Herb-only patches ──
-  { id: "trollheim",    name: "Trollheim",         location: "Roof of Troll Stronghold",     teleport: "Trollheim Farm Teleport",                  category: "special",  icon: "🏔️", note: "My Arm's Big Adventure req · Never diseased" },
-  { id: "wilderness",   name: "Wilderness",        location: "Wilderness (level 37)",        teleport: "Wilderness sword",                         category: "special",  icon: "☠️", note: "Bloodweed seeds only plantable here" },
-  { id: "prifddinas",   name: "Prifddinas",        location: "Prifddinas (Crwys district)",  teleport: "Prifddinas lodestone",                     category: "special",  icon: "🌆", note: "Plague's End quest req" },
-  { id: "alkharid",     name: "Al Kharid",         location: "Al Kharid (Emir's Arena)",     teleport: "Al Kharid lodestone",                      category: "special",  icon: "🏜️", note: "" },
+  // ── Standard Herb patches ──
+  { id: "falador",      name: "Falador",          location: "South of Falador",             teleport: "Explorer's ring",                          category: "herb", icon: "🌿", note: "" },
+  { id: "phasmatys",    name: "Port Phasmatys",   location: "West of Port Phasmatys",       teleport: "Ectophial",                                category: "herb", icon: "🌿", note: "" },
+  { id: "catherby",     name: "Catherby",          location: "North of Catherby",            teleport: "Catherby lodestone / Camelot Teleport",    category: "herb", icon: "🌿", note: "" },
+  { id: "ardougne",     name: "Ardougne",          location: "North of Ardougne",            teleport: "Ardougne lodestone / Ardougne Teleport",   category: "herb", icon: "🌿", note: "" },
+  // ── Special Herb patches ──
+  { id: "trollheim",    name: "Trollheim",         location: "Roof of Troll Stronghold",     teleport: "Trollheim Farm Teleport",                  category: "herb", icon: "🏔️", note: "My Arm's Big Adventure req · Never diseased" },
+  { id: "wilderness",   name: "Wilderness",        location: "Wilderness (level 37)",        teleport: "Wilderness sword",                         category: "herb", icon: "☠️", note: "Bloodweed seeds only" },
+  { id: "prifddinas",   name: "Prifddinas",        location: "Prifddinas (Crwys district)",  teleport: "Crystal teleport",                         category: "herb", icon: "🌆", note: "Plague's End req" },
+  { id: "alkharid",     name: "Al Kharid",         location: "Al Kharid (Emir's Arena)",     teleport: "Al Kharid lodestone",                      category: "herb", icon: "🏜️", note: "" },
+];
+
+const BUSH_PATCHES = [
+  { id: "bush_champions", name: "Champions' Guild", location: "West of Champions' Guild",  teleport: "Varrock lodestone",              icon: "🍒", note: "" },
+  { id: "bush_rimm",      name: "Rimmington",       location: "Rimmington",                teleport: "Port Sarim lodestone",           icon: "🍒", note: "" },
+  { id: "bush_ardougne",  name: "South Ardougne",   location: "South of Ardougne",         teleport: "Kandarin Monastery cloak tp",    icon: "🍒", note: "" },
+  { id: "bush_etceteria", name: "Etceteria",        location: "South-west of Etceteria",   teleport: "LotD (Luck of the Dwarves)",     icon: "🍒", note: "" },
+  { id: "bush_priff",     name: "Prifddinas",       location: "Crwys district",            teleport: "Crystal teleport",               icon: "🍒", note: "Plague's End req" },
 ];
 
 function HerbTracker() {
+  const ALL_PATCHES = [...HERB_PATCHES, ...BUSH_PATCHES];
   const [checked, setChecked] = useState(() =>
-    Object.fromEntries(HERB_PATCHES.map(p => [p.id, false]))
+    Object.fromEntries(ALL_PATCHES.map(p => [p.id, false]))
   );
   const [saving, setSaving] = useState(false);
 
@@ -1826,7 +1857,7 @@ function HerbTracker() {
     async function load() {
       try {
         const { data } = await supabase().from("gim_herb_runs").select("data").eq("id", 1).single();
-        if (data?.data) setChecked(data.data);
+        if (data?.data) setChecked(prev => ({ ...prev, ...data.data }));
       } catch(_) {}
     }
     load();
@@ -1846,17 +1877,16 @@ function HerbTracker() {
   };
 
   const clear = () => {
-    const next = Object.fromEntries(HERB_PATCHES.map(p => [p.id, false]));
+    const next = Object.fromEntries(ALL_PATCHES.map(p => [p.id, false]));
     setChecked(next);
     save(next);
   };
 
   const doneCount = Object.values(checked).filter(Boolean).length;
-  const total = HERB_PATCHES.length;
+  const total = ALL_PATCHES.length;
   const pct = Math.round((doneCount / total) * 100);
-
-  const standard = HERB_PATCHES.filter(p => p.category === "standard");
-  const special  = HERB_PATCHES.filter(p => p.category === "special");
+  const herbDone = HERB_PATCHES.filter(p => checked[p.id]).length;
+  const bushDone = BUSH_PATCHES.filter(p => checked[p.id]).length;
 
   const PatchCard = ({ patch }) => {
     const done = checked[patch.id];
@@ -1915,7 +1945,7 @@ function HerbTracker() {
 
   return (
     <div className="fade-in">
-      <div className="section-title">🌿 Herb Run Tracker</div>
+      <div className="section-title">🌿 Farm Run Tracker</div>
 
       {/* Progress bar + controls */}
       <div className="card" style={{ marginBottom: "1.5rem" }}>
@@ -1956,27 +1986,27 @@ function HerbTracker() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
-        {/* Standard patches */}
+        {/* Left: All Herb patches */}
         <div>
           <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.65rem", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ height: 1, flex: 1, background: "var(--border)" }}/>
-            <span>Standard Patches ({standard.filter(p => checked[p.id]).length}/{standard.length})</span>
+            <span>🌿 Herb Patches ({herbDone}/{HERB_PATCHES.length})</span>
             <span style={{ height: 1, flex: 1, background: "var(--border)" }}/>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {standard.map(p => <PatchCard key={p.id} patch={p} />)}
+            {HERB_PATCHES.map(p => <PatchCard key={p.id} patch={p} />)}
           </div>
         </div>
 
-        {/* Special patches */}
+        {/* Right: Bush patches */}
         <div>
           <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.65rem", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ height: 1, flex: 1, background: "var(--border)" }}/>
-            <span>Special Patches ({special.filter(p => checked[p.id]).length}/{special.length})</span>
+            <span>🍒 Bush Patches ({bushDone}/{BUSH_PATCHES.length})</span>
             <span style={{ height: 1, flex: 1, background: "var(--border)" }}/>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {special.map(p => <PatchCard key={p.id} patch={p} />)}
+            {BUSH_PATCHES.map(p => <PatchCard key={p.id} patch={p} />)}
           </div>
         </div>
       </div>
@@ -2592,9 +2622,30 @@ function RS3News() {
 
 function Homepage({ setPage, discordLink, setDiscordLink }) {
   const [time, setTime] = useState(new Date());
+  const [vosData, setVosData] = useState(null);
+  const [vosError, setVosError] = useState(false);
+
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  // Fetch live VoS from Weird Gloop API (backed by alt1 crowdsource)
+  const fetchVos = async () => {
+    try {
+      const r = await fetch("/api/vos");
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setVosData(d);
+      setVosError(false);
+    } catch {
+      setVosError(true);
+    }
+  };
+  useEffect(() => {
+    fetchVos();
+    const iv = setInterval(fetchVos, 5 * 60 * 1000);
+    return () => clearInterval(iv);
   }, []);
 
   const gameHour = time.getUTCHours();
@@ -2602,10 +2653,14 @@ function Homepage({ setPage, discordLink, setDiscordLink }) {
   const pad = n => String(n).padStart(2, "0");
   const utcStr = `${pad(gameHour)}:${pad(gameMin)}:${pad(time.getUTCSeconds())} UTC`;
 
-  // Build upcoming events list (next 12 slots)
+  // VoS: look up district info from PRIFF_DISTRICTS by name
+  const vosD1 = vosData ? (PRIFF_DISTRICTS.find(d => d.name === vosData.district1) || { name: vosData.district1, icon: "🌆", skill: "" }) : null;
+  const vosD2 = vosData ? (PRIFF_DISTRICTS.find(d => d.name === vosData.district2) || { name: vosData.district2, icon: "🌆", skill: "" }) : null;
+  const vosTimestamp = vosData ? new Date(vosData.timestamp) : null;
+
+  // Build upcoming events list
   const isWildyActive = gameMin < 20 && gameHour % 2 === 0;
   const activeEventIdx = gameHour % WILDFLASH_EVENTS.length;
-  const activeDistrict = PRIFF_DISTRICTS[gameHour % PRIFF_DISTRICTS.length];
   const minsUntilPriffSwitch = 60 - gameMin;
   const minsUntilWildyEnd = isWildyActive ? (20 - gameMin) : null;
   const minsUntilNextWildy = isWildyActive ? (20 - gameMin + (60 - 20) + (gameHour % 2 === 0 ? 60 : 0)) : (gameHour % 2 === 0 ? 60 - gameMin : 60 - gameMin);
@@ -2795,39 +2850,43 @@ function Homepage({ setPage, discordLink, setDiscordLink }) {
           </div>
           <div style={{ overflowY: "auto", maxHeight: 380 }}>
 
-            {/* ── Prifddinas District ── */}
+            {/* ── Prifddinas Voice of Seren ── */}
             <div style={{ borderBottom: "1px solid var(--border)" }}>
               <div style={{ padding: "0.5rem 1.25rem 0.25rem", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.6rem", color: "var(--gold)", textTransform: "uppercase", letterSpacing: "0.12em" }}>🌆 Prifddinas District</span>
+                <span style={{ fontFamily: "'Cinzel', serif", fontSize: "0.6rem", color: "var(--gold)", textTransform: "uppercase", letterSpacing: "0.12em" }}>🌆 Voice of Seren</span>
                 <span style={{ height: 1, flex: 1, background: "var(--border)" }} />
+                {vosData && <span style={{ fontSize: "0.6rem", color: "var(--text-dim)" }}>alt1 crowdsourced</span>}
               </div>
-              {/* Active */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 1.25rem", background: "rgba(200,169,81,0.06)" }}>
-                <span className="dot dot-green" style={{ flexShrink: 0 }} />
-                <div style={{ minWidth: 36, fontFamily: "'Cinzel', serif", fontSize: "0.68rem", color: "#2ecc71", flexShrink: 0 }}>NOW</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "0.85rem", color: "var(--gold)" }}>{activeDistrict.icon} {activeDistrict.name}</div>
-                  <div style={{ fontSize: "0.7rem", color: "var(--text-dim)" }}>{activeDistrict.skill} · ends in {minsUntilPriffSwitch}m</div>
+              {vosError && (
+                <div style={{ padding: "8px 1.25rem", fontSize: "0.78rem", color: "var(--text-dim)" }}>
+                  ⚠️ Could not load VoS data. <a href="https://runescape.wiki/w/Voice_of_Seren" target="_blank" rel="noreferrer" style={{ color: "var(--gold)" }}>Check wiki →</a>
                 </div>
-              </div>
-              {/* Next 4 */}
-              {Array.from({ length: 4 }, (_, i) => {
-                const d = PRIFF_DISTRICTS[(gameHour + i + 1) % PRIFF_DISTRICTS.length];
-                const mins = minsUntilPriffSwitch + i * 60;
-                return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "5px 1.25rem", borderTop: "1px solid rgba(42,46,56,0.4)" }}
-                    onMouseOver={e => e.currentTarget.style.background = "rgba(200,169,81,0.04)"}
-                    onMouseOut={e => e.currentTarget.style.background = "transparent"}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", border: "1px solid var(--gold-dim)", flexShrink: 0 }} />
-                    <div style={{ minWidth: 36, fontFamily: "'Cinzel', serif", fontSize: "0.68rem", color: mins < 15 ? "var(--orange)" : "var(--text-dim)", flexShrink: 0, textAlign: "right" }}>{fmtTime(mins)}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "0.82rem", color: "var(--text)" }}>{d.icon} {d.name}</div>
-                      <div style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>{d.skill}</div>
+              )}
+              {!vosData && !vosError && (
+                <div style={{ padding: "8px 1.25rem", fontSize: "0.78rem", color: "var(--text-dim)" }}>Loading…</div>
+              )}
+              {vosD1 && vosD2 && (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 1.25rem", background: "rgba(200,169,81,0.06)" }}>
+                    <span className="dot dot-green" style={{ flexShrink: 0 }} />
+                    <div style={{ minWidth: 36, fontFamily: "'Cinzel', serif", fontSize: "0.68rem", color: "#2ecc71", flexShrink: 0 }}>NOW</div>
+                    <div style={{ flex: 1, display: "flex", gap: "1rem" }}>
+                      <div>
+                        <div style={{ fontSize: "0.85rem", color: "var(--gold)" }}>{vosD1.icon} {vosD1.name}</div>
+                        {vosD1.skill && <div style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>{vosD1.skill}</div>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "0.85rem", color: "var(--gold)" }}>{vosD2.icon} {vosD2.name}</div>
+                        {vosD2.skill && <div style={{ fontSize: "0.68rem", color: "var(--text-dim)" }}>{vosD2.skill}</div>}
+                      </div>
                     </div>
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-dim)", textAlign: "right" }}>ends in<br/><strong style={{ color: "var(--gold)" }}>{minsUntilPriffSwitch}m</strong></div>
                   </div>
-                );
-              })}
-              <div style={{ height: "0.5rem" }} />
+                  <div style={{ padding: "6px 1.25rem 8px", fontSize: "0.7rem", color: "var(--text-dim)" }}>
+                    VoS rotates randomly — next districts unknown until the hour. <a href="https://runescape.wiki/w/Voice_of_Seren" target="_blank" rel="noreferrer" style={{ color: "var(--gold-dim)" }}>Wiki →</a>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* ── Wilderness Flash Events ── */}
